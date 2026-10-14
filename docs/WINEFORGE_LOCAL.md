@@ -1,0 +1,16 @@
+# Local WineForge runtime (Portico 0.3.4)
+
+WineForge 0.6.0.4 reports Wine 11.17. It can use a separately obtained Apple D3DMetal runtime with its matching Wine bridges. This is a local development setup; Portico's application bundle does not contain WineForge or these Apple files. It does not establish commercial distribution rights or App Store eligibility.
+
+Source: https://github.com/Alien4042x/WineForge/releases/tag/0.6.0.4
+Downloaded WineForge.dmg SHA-256: c3610289997966251975cf5b3dd091a881cfe31f09a226215b89df630d946398
+
+The connected runtime is a complete WineForgeCore directory with its bin/wine, paired wineserver, native libraries and lib/d3dmetal. The latter contains wine/x86_64-windows graphics DLLs and external/D3DMetal.framework plus libd3dshared.dylib. Unix graphics bridges are relative symlinks from wine/x86_64-unix to ../../external/libd3dshared.dylib. Preserve these links: flattening them changes @loader_path and prevents D3DMetal from loading.
+
+LocalGraphicsRuntime schema 2 identifies this layout, verifies Apple's signatures before probing Wine, and fingerprints the loader, core bridges, D3DMetal and shader compiler resources. Existing schema 1 GPTK registrations are unchanged. Files must stay inside the selected runtime. Changes require a new registration; the resolver does not fall back to another engine.
+
+The runtime sets GRAPHICS_BACKEND=d3dmetal and D3DMETAL_RUNTIME_DIR to its own local layer. It clears inherited graphics overrides. WFDXCOMPAT_RUNTIME_DIR=/dev/null explicitly prevents WineForge from auto-discovering its optional sibling WFDXCompat wrapper. That wrapper caused KCD II to crash during rendering-device creation in this setup; the direct D3DMetal path launched successfully. The optional files remain installed but are inactive for this profile. The D3D12 probe actually created devices at 12_0, 12_1 and 12_2, and reported Shader Model 6.6 on the test M4 Max. This is capability evidence, not a promise that every DX12 game runs.
+
+Current Steam's libcef aborts at libcef+0x164415a while initializing its Windows sandbox under this engine. The Steam compatibility profile supplies -cef-disable-sandbox to the Steam process only. This disables CEF's Windows sandbox for that client session; it does not alter macOS security settings. The normal Steam helper and executable verification remain enabled. The legacy Wine 11 single-process helper workaround is not applied to WineForge. Native Steam windows are used because the virtual desktop produced a black library.
+
+Kingdom Come: Deliverance II successfully reached its startup sequence through authenticated Steam and D3DMetal in the initial virtual-desktop test. After moving the runtime, automatic WFDXCompat discovery caused crashes during rendering-device setup. Disabling that optional wrapper restored startup through the ordinary Steam window. The user confirmed the final game launch on 2026-09-06 at approximately 11:28 Kyiv time. A temporary windowed user.cfg did not fix the crash and was removed. No game executable, Steam ownership check, account or DRM file was modified. The old Wine 11 Steam bottle and original Gothic/GPTK bottle remain available. Full gameplay stability and FPS have not been measured.

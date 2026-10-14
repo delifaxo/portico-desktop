@@ -1,0 +1,46 @@
+{
+  "sha": "362fe0e69deeced7ac4db06e1ff69652569313b2",
+  "url": "https://api.github.com/repos/Gcenx/macOS_Wine_builds/git/trees/362fe0e69deeced7ac4db06e1ff69652569313b2",
+  "tree": [
+    {
+      "path": ".gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dfe0770424b2a19faf507a501ebfc23be8f54e7b",
+      "size": 66,
+      "url": "https://api.github.com/repos/Gcenx/macOS_Wine_builds/git/blobs/dfe0770424b2a19faf507a501ebfc23be8f54e7b"
+    },
+    {
+      "path": ".github",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1963cc4091bb14185df6f8da5cadafeed9c5e743",
+      "url": "https://api.github.com/repos/Gcenx/macOS_Wine_builds/git/trees/1963cc4091bb14185df6f8da5cadafeed9c5e743"
+    },
+    {
+      "path": ".github/FUNDING.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9cfad4aad69fd9363d699443f0b472c38d908f7f",
+      "size": 664,
+      "url": "https://api.github.com/repos/Gcenx/macOS_Wine_builds/git/blobs/9cfad4aad69fd9363d699443f0b472c38d908f7f"
+    },
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9bea4330f055c418ce73df7a354fd5c29ead0631",
+      "size": 11,
+      "url": "https://api.github.com/repos/Gcenx/macOS_Wine_builds/git/blobs/9bea4330f055c418ce73df7a354fd5c29ead0631"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "37855b46f36d6b6394d3c6fb4eb0309263c254eb",
+      "size": 2868,
+      "url": "https://api.github.com/repos/Gcenx/macOS_Wine_builds/git/blobs/37855b46f36d6b6394d3c6fb4eb0309263c254eb"
+    }
+  ],
+  "truncated": false
+}

@@ -1,0 +1,55 @@
+{
+  "retrievedUTC": "2026-09-05",
+  "purpose": "Initial license notices and upstream provenance for a private development aggregate; NOT a complete corresponding-source or dependency-license distribution.",
+  "wineUpstreamTag": "wine-11.0",
+  "packagerReleaseTag": "11.0_1",
+  "packagerRepositoryCommit": "362fe0e69deeced7ac4db06e1ff69652569313b2",
+  "runtimeArtifact": {
+    "url": "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.0_1/wine-stable-11.0_1-osx64.tar.xz",
+    "bytes": 185303032,
+    "sha256": "b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388"
+  },
+  "files": [
+    {
+      "path": "wine-11.0/LICENSE",
+      "url": "https://raw.githubusercontent.com/wine-mirror/wine/wine-11.0/LICENSE",
+      "bytes": 824,
+      "sha256": "ae025f125a5d639f0f7abe5146efa1e3d7453cc10b744b2910806fa3f46626ef"
+    },
+    {
+      "path": "wine-11.0/COPYING.LIB",
+      "url": "https://raw.githubusercontent.com/wine-mirror/wine/wine-11.0/COPYING.LIB",
+      "bytes": 26434,
+      "sha256": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c"
+    },
+    {
+      "path": "wine-11.0/AUTHORS",
+      "url": "https://raw.githubusercontent.com/wine-mirror/wine/wine-11.0/AUTHORS",
+      "bytes": 29845,
+      "sha256": "4e2f062fd9c658b60ba7c0000f88f08d2b8f1333fa7b1c37ec27859ecb2de59d"
+    },
+    {
+      "path": "gcenx-11.0_1/README.upstream.md",
+      "url": "https://raw.githubusercontent.com/Gcenx/macOS_Wine_builds/11.0_1/README.md",
+      "bytes": 2868,
+      "sha256": "802938812d0fbbc1b29f506af5eff4340b7eb502fd5ec748fd011689b95d55e5"
+    },
+    {
+      "path": "gcenx-11.0_1/upstream-tree.json",
+      "url": "https://api.github.com/repos/Gcenx/macOS_Wine_builds/git/trees/11.0_1?recursive=1",
+      "bytes": 1609,
+      "sha256": "af9f3b57bf304bda3a9c916760b4ab3bc7f5cceb4bbf912a10dac6925f2c061e"
+    },
+    {
+      "path": "gcenx-11.0_1/upstream-release.json",
+      "url": "https://api.github.com/repos/Gcenx/macOS_Wine_builds/releases/tags/11.0_1",
+      "bytes": 4107,
+      "sha256": "a9e397d1c206b98b07c3bd41019d95a6baa9fd6f45373d46c7f0671f328037ab"
+    }
+  ],
+  "releaseBlockers": [
+    "Exact corresponding Wine source, all packager patches and build/install/relocation scripts are not established by the release README.",
+    "Exact versions, licenses, notices and corresponding sources of bundled dylibs, Wine Mono, Wine Gecko and any embedded GStreamer plugins/dependencies are not yet collected.",
+    "No public release compliance, distribution signature, notarization or Mac App Store approval is asserted."
+  ]
+}
