@@ -29,6 +29,6 @@ Before sharing an assembled `.app` or a runtime archive, inspect that actual art
 
 The root `.gitignore` starts with a desktop allowlist and also excludes binary runtimes, installer archives, build output, signing material, local environment files, and iPad research. Do not force-add ignored files. Review `git diff --cached --stat` and the staged paths before future pushes.
 
-The website/API sources live in the separate `delifaxo/portico-site` repository.
+The website/API sources are maintained separately in a private repository.
 The local `Website/` staging directory, report data, admin tokens, certificates and
 release archives are excluded from this desktop repository.

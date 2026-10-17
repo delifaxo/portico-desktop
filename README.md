@@ -61,8 +61,8 @@ User data lives under `~/Library/Application Support/Portico/`. Build products, 
 
 ## Website and feedback
 
-The promo website and crash/suggestion backend are maintained separately in
-[portico-site](https://github.com/delifaxo/portico-site). The live boards are
+The promo website and crash/suggestion backend are maintained separately.
+The live boards are
 [crashes](https://185.233.45.102:8443/crashes) and
 [suggestions](https://185.233.45.102:8443/suggestions).
 
