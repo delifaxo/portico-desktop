@@ -11,7 +11,7 @@ struct PorticoApp: App {
             ContentView(model: model)
                 .environment(\.locale, model.language.locale)
                 .frame(minWidth: 1080, minHeight: 730)
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(model.theme == .dark ? .dark : .light)
                 .onAppear { delegate.model = model }
         }
         .windowStyle(.hiddenTitleBar)
@@ -32,6 +32,9 @@ struct PorticoApp: App {
                     .keyboardShortcut("n", modifiers: [.command, .shift])
             }
             CommandGroup(replacing: .help) {
+                Button(CrashReportText.text("Повідомити про збій…", "Report a crash…")) { NotificationCenter.default.post(name: CrashReportText.openNotification, object: nil) }
+                Button(CrashReportText.text("Запропонувати ідею…", "Suggest an idea…")) { NotificationCenter.default.post(name: CrashReportText.openNotification, object: FeedbackKind.suggestion) }
+                Link(CrashReportText.text("Збої та пропозиції на сайті", "Crashes and suggestions online"), destination: CrashReporting.boardURL(kind: .crash))
                 Button(L10n.text("Як налаштувати Portico")) { model.section = .setup }
             }
         }
@@ -87,7 +90,9 @@ enum AppSection: String, CaseIterable, Identifiable {
 enum AppSheet: Identifiable {
     case createBottle, addGame, runtimeSetup, graphicsSetup, crossOverImport
     case editGame(UUID)
+    case gameParameters(UUID)
     case launchGuide(Game)
+    case removeGame(GameRemovalTarget)
     var id: String {
         switch self {
         case .createBottle: return "createBottle"
@@ -96,7 +101,9 @@ enum AppSheet: Identifiable {
         case .graphicsSetup: return "graphicsSetup"
         case .crossOverImport: return "crossOverImport"
         case .editGame(let id): return "editGame-\(id)"
+        case .gameParameters(let id): return "gameParameters-\(id)"
         case .launchGuide(let game): return "launchGuide-\(game.id)"
+        case .removeGame(let target): return "removeGame-\(target.id)"
         }
     }
 }
@@ -105,11 +112,15 @@ struct Notice: Identifiable {
     let id = UUID()
     let title: String
     let message: String
+    var reportable = false
 }
 
 @MainActor
 final class AppModel: ObservableObject {
     let cooling = CoolingController()
+    @Published var theme: AppTheme = .saved() {
+        didSet { theme.save() }
+    }
     @Published var language: AppLanguage = .saved() {
         didSet {
             language.save()
@@ -119,6 +130,7 @@ final class AppModel: ObservableObject {
     }
     @Published var library = Library()
     @Published var section: AppSection = .library
+    @Published var selectedGalleryGameID: String?
     @Published var sheet: AppSheet?
     @Published var notice: Notice?
     @Published var runtimes: [WineRuntime] = []
@@ -152,6 +164,7 @@ final class AppModel: ObservableObject {
     @Published var crossOverRequestedGames: Set<UUID> = []
     @Published var preparingGames: Set<UUID> = []
     @Published var preparedGames: Set<UUID> = []
+    @Published var removingGames: Set<UUID> = []
     @Published var gamePreparationErrors: [UUID: String] = [:]
     @Published var gamePreparationProgress: [UUID: InstallProgress] = [:]
     var hasShownGraphicsWelcome = false
@@ -194,13 +207,13 @@ final class AppModel: ObservableObject {
             #endif
         } catch {
             storageProblem = error.localizedDescription
-            notice = Notice(title: L10n.text("Не вдалося відкрити бібліотеку"), message: error.localizedDescription)
+            notice = Notice(title: L10n.text("Не вдалося відкрити бібліотеку"), message: error.localizedDescription, reportable: true)
         }
         engine = WineEngine(graphicsRoot: store?.rootURL.appendingPathComponent("Graphics", isDirectory: true))
         runtimes = WineEngine.discoverRuntimes()
         if !enginePathDraft.isEmpty {
             do { enginePathDraft = try RuntimeLocation.resolve(reference: enginePathDraft).path }
-            catch { notice = Notice(title: L10n.text("Не вдалося виконати дію"), message: error.localizedDescription) }
+            catch { notice = Notice(title: L10n.text("Не вдалося виконати дію"), message: error.localizedDescription, reportable: true) }
         }
         if DistributionPolicy.isAppStore && !enginePathDraft.hasPrefix("portico-bundled://") {
             enginePathDraft = DistributionPolicy.bundledWineURL.path
@@ -222,17 +235,18 @@ final class AppModel: ObservableObject {
     }
     func bottle(for game: Game) -> Bottle? { library.bottles.first { $0.id == game.bottleID } }
     func isBusy(_ bottle: Bottle) -> Bool { operations[bottle.id] != nil }
+    func isStopping(_ bottle: Bottle) -> Bool { stoppingBottles.contains(bottle.id) }
 
     @discardableResult
     func commit(_ next: Library) -> Bool {
         guard let store, storageProblem == nil else {
-            notice = Notice(title: L10n.text("Бібліотека недоступна"), message: storageProblem ?? L10n.text("Не вдалося відкрити сховище."))
+            notice = Notice(title: L10n.text("Бібліотека недоступна"), message: storageProblem ?? L10n.text("Не вдалося відкрити сховище."), reportable: true)
             return false
         }
         do { try store.save(next); library = next; return true }
         catch { show(error); return false }
     }
-    func show(_ error: Error) { notice = Notice(title: L10n.text("Не вдалося виконати дію"), message: error.localizedDescription) }
+    func show(_ error: Error) { notice = Notice(title: L10n.text("Не вдалося виконати дію"), message: error.localizedDescription, reportable: true) }
     func refreshRuntimes() { runtimes = WineEngine.discoverRuntimes() }
 
     func chooseEngine() {
@@ -374,7 +388,7 @@ final class AppModel: ObservableObject {
     }
     func saveGame(id: UUID? = nil, name: String, bottleID: UUID, path: String, arguments: [String], workingDirectory: String,
                   launchMethod: GameLaunchMethod, steamAppID: String, crossOver: CrossOverGame?,
-                  graphicsProfile: GameGraphicsProfile = .automatic, graphicsExecutablePath: String = "") {
+                  graphicsProfile: GameGraphicsProfile = .automatic, graphicsExecutablePath: String = "", enableMetalFX: Bool = false) {
         var game: Game
         if let id {
             guard let existing = library.games.first(where: { $0.id == id }) else {
@@ -391,6 +405,7 @@ final class AppModel: ObservableObject {
             || (launchMethod == .crossOver && game.crossOverLauncher != crossOver)
         do {
             let graphicsChanged = game.effectiveGraphicsProfile != graphicsProfile || (game.graphicsExecutablePath ?? "") != graphicsExecutablePath
+                || game.effectiveMetalFXEnabled != enableMetalFX
             if graphicsChanged && (runningGames[game.id] != nil || preparingGames.contains(game.id)) { throw PorticoError.busy }
             if routeChanged {
                 guard runningGames[game.id] == nil, !crossOverLaunchRequests.contains(game.id) else { throw PorticoError.busy }
@@ -400,6 +415,7 @@ final class AppModel: ObservableObject {
                     executable: path, arguments: arguments, directory: directory, crossOver: crossOver)
             }
             game.graphicsProfile = graphicsProfile
+            game.enableMetalFX = enableMetalFX
             game.graphicsExecutablePath = graphicsExecutablePath.isEmpty ? nil : graphicsExecutablePath
             if launchMethod != .crossOver, graphicsProfile == .directX9,
                let bottle = library.bottles.first(where: { $0.id == bottleID }), let store {
@@ -426,8 +442,7 @@ final class AppModel: ObservableObject {
         if let i = next.games.firstIndex(where: { $0.id == game.id }) { next.games[i].isFavorite.toggle(); commit(next) }
     }
     func removeGame(_ game: Game) {
-        guard runningGames[game.id] == nil else { return }
-        var next = library; next.games.removeAll { $0.id == game.id }; commit(next)
+        sheet = .removeGame(.game(game))
     }
     func launch(_ game: Game) {
         sheet = .launchGuide(game)
@@ -732,6 +747,15 @@ extension AppModel {
         guard let store, canUseSteam(in: bottle) else { return }
         do { _ = try action.uri } catch { show(error); return }
         let existingSession = steamSessions.contains(bottle.id)
+        let requestedGame = gameID.flatMap { id in library.games.first { $0.id == id } } ?? {
+            if case .run(let appID) = action {
+                return library.games.first { $0.bottleID == bottle.id && $0.steamAppID == appID }
+            }
+            return nil
+        }()
+        let metalFX = requestedGame.map {
+            $0.effectiveMetalFXEnabled && MetalFX.isSupported(game: $0, bottle: bottle)
+        }
         let requestedAt = Date()
         steamMessages[bottle.id] = nil
         logBottleID = bottle.id
@@ -747,7 +771,8 @@ extension AppModel {
                 do {
                     _ = try await engine.steam(action: action, bottle: bottle,
                         prefix: store.prefixURL(for: bottle), logURL: store.logURL(for: bottle),
-                        verbose: library.settings.verboseLogging, existingSessionOnly: true, showFPS: library.settings.showFPS)
+                        verbose: library.settings.verboseLogging, existingSessionOnly: true, showFPS: library.settings.showFPS,
+                        enableMetalFX: metalFX)
                     recordSteamLaunch(gameID: gameID, at: requestedAt)
                 } catch {
                     if !stoppingBottles.contains(bottle.id), !(error is CancellationError) { show(error) }
@@ -782,7 +807,7 @@ extension AppModel {
                 do {
                     _ = try await engine.steam(action: action, bottle: bottle,
                         prefix: store.prefixURL(for: bottle), logURL: store.logURL(for: bottle),
-                        verbose: library.settings.verboseLogging, showFPS: library.settings.showFPS)
+                        verbose: library.settings.verboseLogging, showFPS: library.settings.showFPS, enableMetalFX: metalFX)
                     recordSteamLaunch(gameID: gameID, at: requestedAt)
                 } catch {
                     if !stoppingBottles.contains(bottle.id), !(error is CancellationError) { show(error) }

@@ -25,11 +25,13 @@ struct GameEditorSheet: View {
     @State private var directX9Status: GameGraphics.Status?
     @State private var graphicsProfile: GameGraphicsProfile
     @State private var graphicsExecutablePath: String
+    @State private var enableMetalFX: Bool
     @State private var graphicsError: String?
 
-    init(model: AppModel, game: Game? = nil) {
+    init(model: AppModel, game: Game? = nil, showLaunchSettings: Bool = false) {
         self.model = model
         original = game
+        _showLaunchSettings = State(initialValue: showLaunchSettings)
         _name = State(initialValue: game?.name ?? "")
         _bottleID = State(initialValue: game?.bottleID ?? model.newGameBottleID.flatMap { id in model.readyBottles.first { $0.id == id }?.id } ?? model.readyBottles.first?.id)
         _method = State(initialValue: game?.effectiveLaunchMethod ?? .executable)
@@ -40,6 +42,7 @@ struct GameEditorSheet: View {
         _crossOver = State(initialValue: game?.crossOverLauncher)
         _graphicsProfile = State(initialValue: game?.effectiveGraphicsProfile ?? .automatic)
         _graphicsExecutablePath = State(initialValue: game?.graphicsExecutablePath ?? "")
+        _enableMetalFX = State(initialValue: game?.effectiveMetalFXEnabled ?? false)
     }
 
     private var selectedBottle: Bottle? { model.library.bottles.first { $0.id == bottleID } }
@@ -52,6 +55,7 @@ struct GameEditorSheet: View {
         guard let original else { return true }
         if original.effectiveLaunchMethod != method || original.bottleID != bottleID { return true }
         if original.effectiveGraphicsProfile != graphicsProfile || (original.graphicsExecutablePath ?? "") != graphicsExecutablePath { return true }
+        if original.effectiveMetalFXEnabled != enableMetalFX { return true }
         switch method {
         case .steam: return (original.steamAppID ?? "") != appID
         case .executable:
@@ -67,6 +71,7 @@ struct GameEditorSheet: View {
         game.bottleID = bottleID ?? game.bottleID
         game.launchMethod = method; game.executablePath = path; game.steamAppID = appID
         game.graphicsProfile = graphicsProfile
+        game.enableMetalFX = enableMetalFX
         game.graphicsExecutablePath = graphicsExecutablePath.isEmpty ? nil : graphicsExecutablePath
         return game
     }
@@ -114,6 +119,9 @@ struct GameEditorSheet: View {
                         } else {
                             environmentField
                             directX9Configuration
+                            if let selectedBottle, MetalFX.isSupported(game: graphicsDraft, bottle: selectedBottle) {
+                                metalFXConfiguration
+                            }
                             Divider().overlay(Palette.muted.opacity(0.15))
                             if method == .steam { steamFields }
                             else {
@@ -145,7 +153,8 @@ struct GameEditorSheet: View {
                     model.saveGame(id: original?.id, name: name, bottleID: bottleID, path: path,
                         arguments: arguments.map(\.value), workingDirectory: workingDirectory,
                         launchMethod: method, steamAppID: appID, crossOver: crossOver,
-                        graphicsProfile: graphicsProfile, graphicsExecutablePath: graphicsExecutablePath)
+                        graphicsProfile: graphicsProfile, graphicsExecutablePath: graphicsExecutablePath,
+                        enableMetalFX: enableMetalFX)
                 }.buttonStyle(PorticoButtonStyle(primary: true)).keyboardShortcut(.defaultAction)
                     .disabled(!canSave || preparing).accessibilityIdentifier("game-editor-save")
             }
@@ -161,6 +170,18 @@ struct GameEditorSheet: View {
             }
             .onChange(of: bottleID) { _, _ in graphicsExecutablePath = "" }
             .onChange(of: appID) { _, _ in graphicsExecutablePath = "" }
+    }
+
+    private var metalFXConfiguration: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("DLSS → MetalFX", isOn: $enableMetalFX)
+                .toggleStyle(.switch).tint(Palette.mint)
+                .accessibilityIdentifier("game-metalfx-toggle")
+            Text(L10n.text("Використовує MetalFX у сумісних іграх із DLSS. Після ввімкнення виберіть DLSS у графічних налаштуваннях гри. Підтримка залежить від гри та версії GPTK."))
+                .font(.system(size: 11)).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
+            Text(L10n.text("Закрийте гру та Steam у цьому середовищі, потім запустіть гру з Portico, щоб застосувати зміну."))
+                .font(.system(size: 11)).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var directX9Configuration: some View {

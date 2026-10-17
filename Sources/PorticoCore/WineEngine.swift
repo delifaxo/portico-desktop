@@ -10,6 +10,7 @@ public actor WineEngine {
         let htmlLog: URL
         let htmlLogSize: UInt64
         let showFPS: Bool
+        let enableMetalFX: Bool
     }
     private var steamSessions: [String: SteamSession] = [:]
     private var steamCommands: Set<String> = []
@@ -114,13 +115,15 @@ public actor WineEngine {
         }
         if game.effectiveLaunchMethod == .steam {
             let appID = try SteamAction.validatedAppID(game.steamAppID ?? "")
-            return try await steam(action: .run(appID: appID), bottle: bottle, prefix: prefix, logURL: logURL, verbose: verbose, showFPS: showFPS)
+            return try await steam(action: .run(appID: appID), bottle: bottle, prefix: prefix, logURL: logURL, verbose: verbose, showFPS: showFPS,
+                enableMetalFX: game.effectiveMetalFXEnabled && MetalFX.isSupported(game: game, bottle: bottle))
         }
         try game.validateLaunchConfiguration()
         let executable = URL(fileURLWithPath: game.executablePath)
         let directory = game.workingDirectory.map { URL(fileURLWithPath: $0) } ?? executable.deletingLastPathComponent()
         return try await perform(bottle: bottle, prefix: prefix, arguments: [executable.path] + game.arguments,
-            directory: directory, logURL: logURL, verbose: verbose, showFPS: showFPS)
+            directory: directory, logURL: logURL, verbose: verbose, showFPS: showFPS,
+            enableMetalFX: game.effectiveMetalFXEnabled && MetalFX.isSupported(game: game, bottle: bottle))
     }
 
     /// Applies per-executable graphics to any Steam or standalone game. The backup
@@ -287,7 +290,7 @@ public actor WineEngine {
     /// The first call owns the client session until all prefix processes exit. Further
     /// commands may reach that same client without waiting for it to close or replacing
     /// its log. Ordinary installers and configuration still obey the prefix lock.
-    public func steam(action: SteamAction, bottle: Bottle, prefix: URL, logURL: URL, verbose: Bool, existingSessionOnly: Bool = false, showFPS: Bool = false) async throws -> ProcessResult {
+    public func steam(action: SteamAction, bottle: Bottle, prefix: URL, logURL: URL, verbose: Bool, existingSessionOnly: Bool = false, showFPS: Bool = false, enableMetalFX: Bool? = nil) async throws -> ProcessResult {
         try Self.validateReady(bottle, prefix: prefix)
         let uri = try action.uri
         let runtime = try await runtime(bottle: bottle)
@@ -309,6 +312,9 @@ public actor WineEngine {
         }
         let arguments = [executable.path] + clientFlags + [uri]
         if let session = steamSessions[key] {
+            if case .run = action, session.enableMetalFX != (enableMetalFX ?? false) {
+                throw PorticoError.invalidInput(L10n.text("Перезапустіть Steam у цьому середовищі, щоб застосувати режим DLSS → MetalFX для гри."))
+            }
             if case .run = action, session.showFPS != showFPS {
                 throw PorticoError.invalidInput(L10n.text("Перезапустіть Steam у цьому середовищі, щоб застосувати налаштування лічильника FPS."))
             }
@@ -318,7 +324,7 @@ public actor WineEngine {
             defer { steamCommands.remove(key) }
             session.log.append(Data("\n[Portico] Steam: \(uri)\n".utf8))
             let result = try await ProcessRunner.run(executable: runtime.wine, arguments: arguments,
-                environment: Self.environment(runtime, prefix: prefix, verbose: verbose),
+                environment: MetalFX.applying(enabled: session.enableMetalFX, to: Self.environment(runtime, prefix: prefix, verbose: verbose)),
                 workingDirectory: executable.deletingLastPathComponent(), log: session.log, timeout: 20)
             // A failed navigation command must not stop an existing download or game.
             if !(result.exitCode == 42 && result.output.contains("Update complete, launching Steam")) {
@@ -328,6 +334,18 @@ public actor WineEngine {
         }
         guard !existingSessionOnly else {
             throw PorticoError.invalidInput(L10n.text("Сеанс Steam завершився. Відкрийте Steam знову."))
+        }
+        // A client left running outside this host cannot inherit new launch settings.
+        if bottle.graphics?.backend == .d3dMetal {
+            do {
+                let idle = try await ProcessRunner.run(executable: runtime.server, arguments: ["-w"],
+                    environment: Self.environment(runtime, prefix: prefix, verbose: false),
+                    workingDirectory: nil, log: nil, timeout: 1)
+                try Self.requireSuccess(idle)
+            } catch is CancellationError { throw CancellationError() }
+            catch {
+                throw PorticoError.invalidInput(L10n.text("Закрийте Steam та інші програми цього середовища, потім запустіть гру з Portico, щоб застосувати режим DLSS → MetalFX."))
+            }
         }
         _ = try acquire(prefix)
         defer { steamSessions[key] = nil; busyPrefixes.remove(key) }
@@ -343,14 +361,15 @@ public actor WineEngine {
         let log = try BoundedLog(url: logURL)
         let htmlLog = executable.deletingLastPathComponent().appendingPathComponent("logs/steamui_html.txt")
         let htmlLogSize = (try? htmlLog.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(UInt64.init) ?? 0
-        steamSessions[key] = SteamSession(runtime: runtime, log: log, htmlLog: htmlLog, htmlLogSize: htmlLogSize, showFPS: showFPS)
+        let metalFX = enableMetalFX == true && bottle.graphics?.backend == .d3dMetal
+        steamSessions[key] = SteamSession(runtime: runtime, log: log, htmlLog: htmlLog, htmlLogSize: htmlLogSize, showFPS: showFPS, enableMetalFX: metalFX)
         // Start the desktop only for a new session. Navigation commands above must
         // reach the existing Steam process without creating another desktop.
         let startupArguments = legacyDesktop
             ? ["explorer.exe", "/desktop=PorticoSteam,1280x800"] + arguments
             : arguments
         return try await execute(runtime: runtime, arguments: startupArguments, prefix: prefix,
-            directory: executable.deletingLastPathComponent(), verbose: verbose, log: log, allowSteamRestart: true, showFPS: showFPS)
+            directory: executable.deletingLastPathComponent(), verbose: verbose, log: log, allowSteamRestart: true, showFPS: showFPS, enableMetalFX: metalFX)
     }
 
     /// Only the selected prefix is stopped; no global killall/pkill is used.
@@ -391,19 +410,23 @@ public actor WineEngine {
         } catch { return false }
     }
 
-    private func perform(bottle: Bottle, prefix: URL, arguments: [String], directory: URL?, logURL: URL, verbose: Bool, showFPS: Bool? = nil) async throws -> ProcessResult {
+    private func perform(bottle: Bottle, prefix: URL, arguments: [String], directory: URL?, logURL: URL, verbose: Bool, showFPS: Bool? = nil, enableMetalFX: Bool? = nil) async throws -> ProcessResult {
         let runtime = try await runtime(bottle: bottle)
         let key = try acquire(prefix)
         defer { busyPrefixes.remove(key) }
         let log = try BoundedLog(url: logURL)
         return try await execute(runtime: runtime, arguments: arguments, prefix: prefix,
-            directory: directory, verbose: verbose, log: log, showFPS: showFPS)
+            directory: directory, verbose: verbose, log: log, showFPS: showFPS, enableMetalFX: enableMetalFX)
     }
 
     private func execute(runtime: Runtime, arguments: [String], prefix: URL, directory: URL?, verbose: Bool,
-                         log: BoundedLog, timeout: TimeInterval? = nil, allowSteamRestart: Bool = false, showFPS: Bool? = nil) async throws -> ProcessResult {
+                         log: BoundedLog, timeout: TimeInterval? = nil, allowSteamRestart: Bool = false, showFPS: Bool? = nil, enableMetalFX: Bool? = nil) async throws -> ProcessResult {
         var environment = Self.environment(runtime, prefix: prefix, verbose: verbose)
         if let showFPS { environment = FPSCounter.applying(enabled: showFPS, to: environment) }
+        if let enableMetalFX {
+            environment = MetalFX.applying(enabled: enableMetalFX, to: environment)
+            log.append(Data("[Portico] DLSS → MetalFX: \(enableMetalFX ? "ON" : "OFF")\n".utf8))
+        }
         log.append(Data(("[Portico] \(runtime.wine.path) \(arguments.map { String(reflecting: $0) }.joined(separator: " "))\n").utf8))
         let commandRunner = ProcessRunner()
         let startedAt = ProcessInfo.processInfo.systemUptime

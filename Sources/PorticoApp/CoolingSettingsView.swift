@@ -8,8 +8,23 @@ struct CoolingSettingsView: View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(L10n.text("Налаштування")).font(.system(size: 30, weight: .bold))
-                Text(L10n.text("Охолодження Mac і лічильник FPS в іграх.")).foregroundStyle(Palette.muted)
+                Text(L10n.text("Тема та мова інтерфейсу.")).foregroundStyle(Palette.muted)
             }
+            VStack(alignment: .leading, spacing: 18) {
+                Label(L10n.text("Оформлення"), systemImage: "circle.lefthalf.filled")
+                    .font(.system(size: 20, weight: .semibold))
+                HStack {
+                    Text(L10n.text("Тема оформлення"))
+                    Spacer()
+                    ThemePicker(model: model, showsLabels: true)
+                }
+                HStack {
+                    Text(L10n.text("Мова інтерфейсу"))
+                    Spacer()
+                    LanguagePicker(model: model)
+                }
+            }.padding(25).background(Palette.panel, in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Palette.separator, lineWidth: 1))
             VStack(alignment: .leading, spacing: 14) {
                 Label(L10n.text("Лічильник FPS"), systemImage: "speedometer")
                     .font(.system(size: 20, weight: .semibold))
@@ -26,7 +41,7 @@ struct CoolingSettingsView: View {
                     .font(.system(size: 12)).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
             }.padding(25)
                 .background(Palette.panel, in: RoundedRectangle(cornerRadius: 13))
-                .overlay(RoundedRectangle(cornerRadius: 13).stroke(.white.opacity(0.06), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 13).stroke(Palette.separator, lineWidth: 1))
             VStack(alignment: .leading, spacing: 20) {
                 Label(L10n.text("Охолодження"), systemImage: "fanblades")
                     .font(.system(size: 20, weight: .semibold))
@@ -83,7 +98,7 @@ struct CoolingSettingsView: View {
                     .font(.system(size: 11)).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
             }.padding(25)
                 .background(Palette.panel, in: RoundedRectangle(cornerRadius: 13))
-                .overlay(RoundedRectangle(cornerRadius: 13).stroke(.white.opacity(0.06), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 13).stroke(Palette.separator, lineWidth: 1))
         }
         .task {
             while !Task.isCancelled {

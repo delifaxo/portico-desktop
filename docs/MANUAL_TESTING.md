@@ -58,6 +58,16 @@
 | Відсутній клієнт | Закрити Steam, тимчасово перейменувати `steam.exe` у тестовому префіксі, запустити картку. | Зрозуміла помилка про відсутній Windows-клієнт; немає перенаправлення в Steam для macOS. Відновити файл. |
 | Перезапуск Portico | Закрити Wine, перезапустити Portico й відкрити імпортовану картку. | App ID та прив'язка до середовища збережені; запуск знову відбувається через Windows Steam. |
 
+## Видалення ігор (лише на окремих тестових даних)
+
+- Натиснути кнопку Кошика на картці звичайної гри й закрити вікно кнопкою «Скасувати»: картка, файли та `library.json` не змінюються. Повторити через контекстне меню.
+- Вибрати «Лише з бібліотеки» й підтвердити: зникає тільки вибрана картка, лічильник оновлюється, після перезапуску видалення зберігається. Файли гри, збереження та інші картки залишаються.
+- Для одноразової `.exe`-гри вибрати «Видалити з диска», вибрати її папку, перевірити показаний шлях і підтвердити переміщення в Кошик. Папка зникає з початкового місця, у Кошику є її файли, картка зникає після успішної операції. Сусідня гра та збереження поза папкою залишаються. Скасування вибору папки нічого не видаляє.
+- Спробувати вибрати спільну папку Games, корінь середовища, Windows, символьне посилання, папку без вибраного `.exe` і папку з другою карткою: дія блокується з поясненням. Перевірити блокування видалення під час запуску й підготовки.
+- Для одноразової Steam-гри перевірити, що підтвердження відкривається саме у Windows Steam вибраного середовища. Скасувати у Steam: файли та картка залишаються. Повторити й завершити видалення, тримаючи вікно Portico відкритим: після зникнення папки й оновлення списку зникає картка. Закрити Steam без видалення: можна повторити дію.
+- Для CrossOver перевірити пояснення з назвою середовища та відкриття CrossOver. Вилучення лише картки не змінює ярлик або середовище CrossOver.
+- Повторити основні вікна мовами ENG і UKR; довгі назви й шляхи мають переноситися без обрізання кнопок.
+
 ## Сховище
 
 На копії тестових даних перевірити відмову читання пошкодженого `library.json` і файлу з непідтримуваною версією схеми. Застосунок має показати помилку й зберегти початкові байти файлу. Відкрити копію бібліотеки, збереженої до підтримки Steam: записи без `steamAppID` мають завантажитися й продовжити звичайний запуск `.exe`. Пошкоджений Steam App ID у тестових даних має відхилятися без перезаписування файлу. Перевірити шляхи середовищ із UUID: довільна назва середовища не має створювати каталогів поза `Bottles`.
@@ -107,3 +117,21 @@ Wine / архітектура / графічний backend:
 - В англійському інтерфейсі перевірити дату створення середовища й помилку валідації. Користувацькі шляхи, назви та початковий результат сторонніх процесів залишаються без змін.
 
 Ці пункти — сценарії ручної перевірки. Автотести `LocalizationTests` окремо перевіряють збереження вибору, інтерполяцію та відповідність плейсхолдерів перекладів.
+
+## Gallery and appearance
+
+- Switch the sun/moon control in the header between Light and Dark. Check the library, Steam, environments, engine, logs, setup, settings and open dialogs; quit and reopen to confirm the theme persists.
+- Switch UKR/ENG in the header and in Settings. Both controls should update immediately without losing the current theme or game selection.
+- Select a game tile and verify that Edit, Options, Favorite and Play refer to that game. Options opens launch parameters expanded for direct executable games.
+- Search, switch Favorites/Recent, and remove a favorite while Favorites is active. Selection must follow the visible results; no launch bar should remain when no games match.
+- Open the ellipsis menu and the existing removal dialog, then cancel. Imported CrossOver games retain their own launch route, favorite, Finder and removal actions.
+- Check a long game name, multiple rows, an empty library and a narrow window. All games use the same built-in placeholder; no cover images are downloaded.
+- Use the isolated UI smoke fixture for launch/stop checks. Simulator UI evidence does not establish actual Windows game compatibility.
+
+## Reviewed support reports
+
+- Open Report from the header. Confirm that app/macOS versions, architecture, selected game and redacted environment log are visible before sending. Cancel must close without uploading.
+- Reproduce a synthetic launch error with the isolated Wine simulator. The error offers Report and Cancel; Report pre-fills the error and diagnostics, while Cancel returns to the library.
+- Open Help > Report while editing a game, then cancel the report. Unsaved editor fields must remain intact.
+- Review and consent before Send. Editing the text clears consent. An unchanged retry reuses its report ID; editing a previously attempted payload creates a new ID.
+- A successful receipt must match the submitted report ID. Network errors preserve the draft. Use synthetic data for live API verification, never real user diagnostics during QA.

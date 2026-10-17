@@ -71,6 +71,6 @@ struct BundledRuntimeCard: View {
                     .buttonStyle(.plain).font(.system(size: 10)).foregroundStyle(Palette.mint)
             }
         }.padding(18).background(Palette.panel, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.07)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.separator))
     }
 }

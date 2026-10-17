@@ -12,6 +12,17 @@ Cards show **CrossOver** as their engine. Play revalidates the shortcut and open
 
 The external shortcut path is disabled in the App Store build profile. It does not change the standalone Wine adapter or provide an embedded CrossOver runtime.
 
+## Removing games
+
+Click the Trash button on a library card (or **Remove game…** in its context menu). The confirmation window offers two choices:
+
+- **Library entry only** removes the card and its Portico launch settings. Installed files, saves, and the Windows environment stay in place. The game can be added again.
+- **Uninstall game files** opens the Windows Steam uninstall confirmation for Steam games. Keep the Portico removal window open until Steam finishes: Portico removes the card only after the installation folder disappears and a successful Steam scan no longer finds the game. Cancelling in Steam leaves the card intact. For standalone `.exe` games, explicitly select the dedicated game folder and confirm **Move to Trash**. Everything inside that folder, including any saves there, goes to Trash; saves elsewhere stay in place. Empty Trash to reclaim space. This folder-based option does not run a Windows uninstaller or clean its registry entries.
+
+For CrossOver cards, **Uninstall game files** opens CrossOver. Choose the card's bottle, uninstall the game from its installed software list, then remove its Portico card. Portico does not delete an external CrossOver bottle.
+
+Removal is blocked during managed game launches and preparation. Folder removal rejects shared library roots, Windows/system folders, symbolic links, runtime bundles, and folders used by another library card. A failed filesystem operation keeps the card. If saving the library fails after a successful move, the folder is recoverable from Trash and Portico reports the storage error.
+
 ## Local verification, 2026-09-05
 
 - Found a fully installed Gothic 1 Remake in the existing CrossOver Steam library (38,333,717,785 bytes according to Steam's local manifest, state flag 4).

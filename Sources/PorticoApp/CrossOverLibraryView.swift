@@ -38,10 +38,7 @@ extension AppModel {
     }
 
     func removeCrossOverGame(_ game: CrossOverGame) {
-        guard !crossOverLaunchRequests.contains(game.id) else { return }
-        var next = library
-        next.crossOverGames?.removeAll { $0.id == game.id }
-        if commit(next) { crossOverRequestedGames.remove(game.id) }
+        sheet = .removeGame(.crossOver(game))
     }
 
     func toggleCrossOverFavorite(_ game: CrossOverGame) {
@@ -91,6 +88,11 @@ struct CrossOverGameCard: View {
             HStack {
                 Image(systemName: "arrow.up.forward.app").font(.system(size: 26)).foregroundStyle(Palette.mint)
                 Spacer()
+                Button(role: .destructive) { model.removeCrossOverGame(game) } label: { Image(systemName: "trash") }
+                    .buttonStyle(.plain).foregroundStyle(Palette.muted)
+                    .help(L10n.text("Видалити гру")).accessibilityLabel(L10n.text("Видалити гру"))
+                    .accessibilityIdentifier("game-delete-\(game.id.uuidString)")
+                    .disabled(!model.canRemove(.crossOver(game)))
                 Button { model.toggleCrossOverFavorite(game) } label: {
                     Image(systemName: game.isFavorite ? "star.fill" : "star")
                         .foregroundStyle(game.isFavorite ? Palette.amber : Palette.muted)
@@ -118,13 +120,13 @@ struct CrossOverGameCard: View {
                 .accessibilityIdentifier("crossover-launch-\(game.name)")
         }.padding(18).frame(maxWidth: .infinity, alignment: .leading)
             .background(Palette.panel, in: RoundedRectangle(cornerRadius: 13))
-            .overlay(RoundedRectangle(cornerRadius: 13).stroke(.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 13).stroke(Palette.separator))
             .contextMenu {
                 Button(L10n.text("Показати файл у Finder")) {
                     NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: game.launcherPath)])
                 }
-                Button(L10n.text("Вилучити з бібліотеки")) { model.removeCrossOverGame(game) }
-                    .disabled(model.crossOverLaunchRequests.contains(game.id))
+                Button(L10n.text("Видалити гру…"), role: .destructive) { model.removeCrossOverGame(game) }
+                    .disabled(!model.canRemove(.crossOver(game)))
             }
     }
 }

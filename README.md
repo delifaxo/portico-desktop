@@ -58,3 +58,14 @@ Some technical documents contain dated development results. They describe those 
 Real runtime integration tests are opt-in through `PORTICO_DX12_INTEGRATION_ROOT` (DX12) and `PORTICO_TEST_WINE_PATH` (Wine registry). Ordinary `swift test` runs skip them when those variables are absent.
 
 User data lives under `~/Library/Application Support/Portico/`. Build products, downloaded runtimes, Windows prefixes, logs, signing credentials, and research directories are excluded from Git. The root `.gitignore` explicitly lists the desktop files intended for publication.
+
+## Website and feedback
+
+The promo website and crash/suggestion backend are maintained separately in
+[portico-site](https://github.com/delifaxo/portico-site). The live boards are
+[crashes](https://185.233.45.102:8443/crashes) and
+[suggestions](https://185.233.45.102:8443/suggestions).
+
+In the app, use Report or Help → Suggest an idea. Review the payload and consent
+before sending. The public board shows the description and status; diagnostic
+logs stay in the private administrator panel. No reports upload automatically.

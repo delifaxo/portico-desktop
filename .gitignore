@@ -101,3 +101,6 @@ __pycache__/
 
 # This is an upstream license text, not a Windows import library.
 !/config/runtime-licenses/wine-11.0/COPYING.LIB
+
+# Website source is maintained in delifaxo/portico-site.
+/Website/

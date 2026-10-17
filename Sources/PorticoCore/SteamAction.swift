@@ -4,6 +4,7 @@ import Foundation
 public enum SteamAction: Equatable, Sendable {
     case library, store, downloads
     case install(appID: String)
+    case uninstall(appID: String)
     case run(appID: String)
 
     public var uri: String {
@@ -13,6 +14,7 @@ public enum SteamAction: Equatable, Sendable {
             case .store: return "steam://store"
             case .downloads: return "steam://open/downloads"
             case .install(let id): return "steam://install/\(try Self.validatedAppID(id))"
+            case .uninstall(let id): return "steam://uninstall/\(try Self.validatedAppID(id))"
             case .run(let id): return "steam://rungameid/\(try Self.validatedAppID(id))"
             }
         }

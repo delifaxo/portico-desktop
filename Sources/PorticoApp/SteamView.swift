@@ -164,8 +164,8 @@ struct SteamView: View {
                 Text(L10n.text(message)).font(.system(size: 11)).foregroundStyle(Palette.muted).lineSpacing(4).textSelection(.enabled)
             }
         }.padding(26)
-            .background(LinearGradient(colors: [Color(hex: 0x20333C), Palette.panel], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 15))
-            .overlay(RoundedRectangle(cornerRadius: 15).stroke(.white.opacity(0.075)))
+            .background(LinearGradient(colors: [Palette.elevated, Palette.panel], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 15))
+            .overlay(RoundedRectangle(cornerRadius: 15).stroke(Palette.separator))
     }
 
     private func installedGamesCard(_ bottle: Bottle) -> some View {
@@ -216,6 +216,6 @@ struct SteamView: View {
 private extension View {
     func steamPanel() -> some View {
         background(Palette.panel, in: RoundedRectangle(cornerRadius: 13))
-            .overlay(RoundedRectangle(cornerRadius: 13).stroke(.white.opacity(0.06)))
+            .overlay(RoundedRectangle(cornerRadius: 13).stroke(Palette.separator))
     }
 }

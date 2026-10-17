@@ -32,6 +32,7 @@ final class WineEngineTests: XCTestCase {
         ;; esac
         printf '%s\n' "$WINEPREFIX" "$WINEDEBUG" "$WINESERVER" "$PATH" > "$WINEPREFIX/environment.txt"
         printf '%s\n' "$MTL_HUD_ENABLED" > "$WINEPREFIX/hud.txt"
+        printf '%s\n' "$D3DM_ENABLE_METALFX" > "$WINEPREFIX/metalfx.txt"
         /bin/pwd > "$WINEPREFIX/cwd.txt"
         if [ "$1" = "wineboot.exe" ]; then
             /bin/mkdir -p "$WINEPREFIX/drive_c"
@@ -110,6 +111,100 @@ final class WineEngineTests: XCTestCase {
         XCTAssertEqual(try read("hud.txt"), "1\n")
         _ = try await engine.launch(game: game, bottle: selected, prefix: prefix, logURL: log, verbose: false, showFPS: false)
         XCTAssertEqual(try read("hud.txt"), "0\n")
+    }
+
+    func testMetalFXSettingReachesDirectAndSteamLaunchesAndCanBeDisabled() async throws {
+        try makeReady()
+        let (engine, selected) = try metalFXRuntime()
+        let executable = root.appendingPathComponent("Game.exe")
+        try file(executable)
+        var game = Game(name: "Game", bottleID: selected.id, executablePath: executable.path)
+        game.enableMetalFX = true
+        _ = try await engine.launch(game: game, bottle: selected, prefix: prefix, logURL: log, verbose: false)
+        XCTAssertEqual(try read("metalfx.txt"), "1\n")
+        game.enableMetalFX = false
+        _ = try await engine.launch(game: game, bottle: selected, prefix: prefix, logURL: log, verbose: false)
+        XCTAssertEqual(try read("metalfx.txt"), "0\n")
+        try file(prefix.appendingPathComponent("drive_c/Program Files (x86)/Steam/steam.exe"))
+        game.steamAppID = "1297900"
+        game.enableMetalFX = true
+        _ = try await engine.launch(game: game, bottle: selected, prefix: prefix, logURL: log, verbose: false)
+        XCTAssertEqual(try read("metalfx.txt"), "1\n")
+        XCTAssertTrue(try read("arguments.txt").contains("steam://rungameid/1297900"))
+    }
+
+    func testChangingMetalFXRequiresSteamRestartAndPreservesRunningSession() async throws {
+        try makeReady()
+        let (engine, selected) = try metalFXRuntime()
+        try file(prefix.appendingPathComponent("drive_c/Program Files (x86)/Steam/steam.exe"))
+        try file(prefix.appendingPathComponent("hold"))
+        let selectedPrefix = prefix!, selectedLog = log!
+        let session = Task {
+            try await engine.steam(action: .library, bottle: selected, prefix: selectedPrefix,
+                logURL: selectedLog, verbose: false, enableMetalFX: true)
+        }
+        defer { session.cancel() }
+        try await waitForFile(prefix.appendingPathComponent("server-waiting"))
+        XCTAssertEqual(try read("metalfx.txt"), "1\n")
+        _ = try await engine.steam(action: .downloads, bottle: selected, prefix: prefix,
+            logURL: log, verbose: false, existingSessionOnly: true)
+        XCTAssertEqual(try read("metalfx.txt"), "1\n")
+        do {
+            _ = try await engine.steam(action: .run(appID: "1297900"), bottle: selected, prefix: prefix,
+                logURL: log, verbose: false, existingSessionOnly: true, enableMetalFX: false)
+            XCTFail("Steam children inherit the client's original MetalFX setting")
+        } catch PorticoError.invalidInput(let message) {
+            XCTAssertTrue(message.contains("MetalFX"))
+        }
+        let running = await engine.isRunning(prefix: prefix)
+        XCTAssertTrue(running)
+        XCTAssertFalse(try read("server-calls.txt").contains("-k"))
+        try await engine.stop(bottle: selected, prefix: prefix)
+        _ = try await session.value
+    }
+
+    func testUnmanagedSteamCannotSilentlyIgnoreMetalFXSetting() async throws {
+        try makeReady()
+        let (engine, selected) = try metalFXRuntime()
+        try file(prefix.appendingPathComponent("drive_c/Program Files (x86)/Steam/steam.exe"))
+        try file(prefix.appendingPathComponent("hold"))
+        try Data("0\n".utf8).write(to: prefix.appendingPathComponent("metalfx.txt"))
+        do {
+            _ = try await engine.steam(action: .run(appID: "1297900"), bottle: selected,
+                prefix: prefix, logURL: log, verbose: false, enableMetalFX: true)
+            XCTFail("An external client must be closed before configuring its children")
+        } catch PorticoError.invalidInput(let message) {
+            XCTAssertTrue(message.contains("MetalFX"))
+        }
+        XCTAssertEqual(try read("metalfx.txt"), "0\n")
+        XCTAssertFalse(try read("server-calls.txt").contains("-k"))
+        try FileManager.default.removeItem(at: prefix.appendingPathComponent("hold"))
+    }
+
+    private func metalFXRuntime() throws -> (WineEngine, Bottle) {
+        let graphics = root.resolvingSymlinksInPath().appendingPathComponent("graphics", isDirectory: true)
+        let runtime = graphics.appendingPathComponent("runtime", isDirectory: true)
+        for (path, executable) in LocalGraphicsRuntime.requiredFiles {
+            let target = runtime.appendingPathComponent(path)
+            try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if path == "bin/wine64" { try FileManager.default.copyItem(at: wine, to: target) }
+            else if path == "bin/wineserver" {
+                let contents = try String(contentsOf: server, encoding: .utf8)
+                try script(target, contents.replacingOccurrences(of: "if [ \"$1\" = \"-w\" ]; then",
+                    with: "if [ \"$1\" = \"-w\" ] && [ -f \"$WINEPREFIX/metalfx.txt\" ]; then"))
+            }
+            else {
+                try Data("fixture".utf8).write(to: target)
+                if executable { try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: target.path) }
+            }
+        }
+        let registration = try LocalGraphicsRuntime.snapshot(runtime: runtime, version: "test")
+        try FileManager.default.createDirectory(at: graphics.appendingPathComponent("LocalRuntimes", isDirectory: true), withIntermediateDirectories: true)
+        try LocalGraphicsRuntime.save(registration, rootURL: graphics)
+        let selected = Bottle(name: "MetalFX fixture", status: .ready,
+            enginePath: try GraphicsRuntimeLocation.reference(providerID: registration.providerID),
+            graphics: BottleGraphics(backend: .d3dMetal, providerID: registration.providerID))
+        return (WineEngine(graphicsRoot: graphics), selected)
     }
 
     func testLaunchUsesExplicitWorkingDirectory() async throws {
@@ -333,6 +428,20 @@ final class WineEngineTests: XCTestCase {
         _ = try await WineEngine().launch(game: game, bottle: selectedBottle, prefix: prefix, logURL: log, verbose: false)
         XCTAssertEqual(try read("arguments.txt"), "\(client.path)\nsteam://rungameid/435150\n")
         XCTAssertEqual(try read("server-calls.txt"), "-w\n")
+    }
+
+    func testSteamUninstallUsesOnlyTheSelectedWindowsClient() async throws {
+        try makeReady()
+        let client = prefix.appendingPathComponent("drive_c/Program Files (x86)/Steam/steam.exe")
+        try file(client)
+        let otherPrefix = root.appendingPathComponent("other prefix")
+        let otherGame = otherPrefix.appendingPathComponent("drive_c/Game/game.exe")
+        try file(otherGame)
+        _ = try await WineEngine().steam(action: .uninstall(appID: "000435150"), bottle: bottle(),
+                                        prefix: prefix, logURL: log, verbose: false)
+        XCTAssertEqual(try read("arguments.txt"), "\(client.path)\nsteam://uninstall/435150\n")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: otherGame.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: otherPrefix.appendingPathComponent("arguments.txt").path))
     }
 
     func testSteamFPSPreferenceRequiresRestartWithoutStoppingExistingSession() async throws {

@@ -87,7 +87,8 @@ struct RuntimeSetupView: View {
                     Text("Portico").font(.system(size: 21, weight: .bold, design: .rounded))
                 }.foregroundStyle(Palette.mint)
                 Spacer(minLength: 5)
-                PortalArtwork().frame(width: 215, height: 220).scaleEffect(0.8).offset(x: -9)
+                Image(systemName: "gamecontroller").font(.system(size: 87, weight: .ultraLight))
+                    .foregroundStyle(Palette.mint).frame(width: 215, height: 220)
                 Text(L10n.text("Ваша гра.\nВаш Mac."))
                     .font(.system(size: 32, weight: .semibold)).tracking(-1.2)
                 Text(L10n.text("Кілька компонентів —\nі можна створювати перше\nігрове середовище."))
@@ -98,7 +99,7 @@ struct RuntimeSetupView: View {
                     Text(L10n.text("Ігри зберігаються на вашому Mac")).font(.system(size: 9))
                 }.foregroundStyle(Palette.muted)
             }.padding(28).frame(width: 270)
-                .background(LinearGradient(colors: [Color(hex: 0x253632), Color(hex: 0x171F22)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .background(LinearGradient(colors: [Palette.elevated, Palette.panel], startPoint: .topLeading, endPoint: .bottomTrailing))
 
             VStack(alignment: .leading, spacing: 20) {
                 HStack {
@@ -156,7 +157,7 @@ struct RuntimeSetupView: View {
                 }
             }.padding(28).frame(width: 532)
                 .background(Palette.sidebar)
-        }.frame(height: 645).preferredColorScheme(.dark)
+        }.frame(height: 645)
             .onAppear { model.restoreDownloadedWine() }
     }
 
@@ -233,6 +234,6 @@ struct RuntimeSetupView: View {
 private extension View {
     func setupCard() -> some View {
         self.background(Palette.panel, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.07)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.separator))
     }
 }

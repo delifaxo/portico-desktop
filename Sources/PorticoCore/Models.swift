@@ -43,6 +43,8 @@ public struct Game: Identifiable, Codable, Equatable, Sendable {
     public var graphicsProfile: GameGraphicsProfile?
     /// Steam stores steam.exe as the launcher; graphics overrides need the game's executable.
     public var graphicsExecutablePath: String?
+    /// Optional for libraries saved before per-game MetalFX support.
+    public var enableMetalFX: Bool?
     public init(id: UUID = UUID(), name: String, bottleID: UUID, executablePath: String, arguments: [String] = [], workingDirectory: String? = nil, addedAt: Date = Date(), lastPlayedAt: Date? = nil, isFavorite: Bool = false, steamAppID: String? = nil, launchMethod: GameLaunchMethod? = nil, crossOverLauncher: CrossOverGame? = nil) {
         self.id = id; self.name = name; self.bottleID = bottleID
         self.executablePath = executablePath; self.arguments = arguments
@@ -55,6 +57,7 @@ public struct Game: Identifiable, Codable, Equatable, Sendable {
 
     public var effectiveLaunchMethod: GameLaunchMethod { launchMethod ?? (steamAppID == nil ? .executable : .steam) }
     public var effectiveGraphicsProfile: GameGraphicsProfile { graphicsProfile ?? .automatic }
+    public var effectiveMetalFXEnabled: Bool { enableMetalFX ?? false }
 }
 
 public struct AppSettings: Codable, Equatable, Sendable {

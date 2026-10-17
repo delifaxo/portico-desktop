@@ -62,8 +62,8 @@ cat > "$bundle_path/Contents/Info.plist" <<'PLIST'
     <key>CFBundleDisplayName</key><string>Portico</string>
     <key>CFBundleIconFile</key><string>Portico</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.3.7</string>
-    <key>CFBundleVersion</key><string>10</string>
+    <key>CFBundleShortVersionString</key><string>0.3.8</string>
+    <key>CFBundleVersion</key><string>11</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.games</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
